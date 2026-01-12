@@ -1,0 +1,294 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ============================================
+       DESIGN SYSTEM v2 - Clean, Professional
+       Philosophy: Neutral by default, color for action
+       ============================================ */
+    
+    /* ─────────────────────────────────────────────
+       DARK MODE (DEFAULT)
+       ───────────────────────────────────────────── */
+    
+    /* Backgrounds - Pure neutral zinc scale */
+    --bg-base: #09090B;
+    --bg-elevated: #18181B;
+    --bg-surface: #27272A;
+    --bg-hover: #3F3F46;
+    --bg-active: #52525B;
+    
+    /* Card background */
+    --card-bg: #18181B;
+    --bg-card: #18181B;
+    --bg-muted: #27272A;
+
+    /* Borders - Clean neutrals */
+    --border: #27272A;
+    --border-subtle: #27272A;
+    --border-default: #3F3F46;
+    --border-strong: #52525B;
+    --border-focus: #A78BFA;
+
+    /* Text - High contrast neutrals */
+    --text-primary: #FAFAFA;
+    --text-secondary: #A1A1AA;
+    --text-tertiary: #71717A;
+    --text-muted: #52525B;
+    --text-muted-foreground: #A1A1AA;
+
+    /* Accent - Soft Purple (USE SPARINGLY - actions only) */
+    --accent-primary: #A78BFA;
+    --accent-hover: #8B5CF6;
+    --accent-active: #7C3AED;
+    --accent-subtle: rgba(167, 139, 250, 0.08);
+    --accent-muted: rgba(167, 139, 250, 0.12);
+    --accent-border: rgba(167, 139, 250, 0.20);
+    --accent-ring: rgba(167, 139, 250, 0.35);
+
+    /* Gradient - Subtle purple spectrum */
+    --gradient-start: #A78BFA;
+    --gradient-mid: #8B5CF6;
+    --gradient-end: #C4B5FD;
+
+    /* Semantic colors */
+    --success: #22C55E;
+    --success-subtle: rgba(34, 197, 94, 0.10);
+    --warning: #F59E0B;
+    --warning-subtle: rgba(245, 158, 11, 0.10);
+    --error: #EF4444;
+    --error-subtle: rgba(239, 68, 68, 0.10);
+    --info: #A78BFA;
+    --info-subtle: rgba(167, 139, 250, 0.10);
+
+    /* Shadows - Pure black, no color tint */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.10), 0 1px 2px -1px rgba(0, 0, 0, 0.10);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.10), 0 2px 4px -2px rgba(0, 0, 0, 0.10);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.10), 0 4px 6px -4px rgba(0, 0, 0, 0.10);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.10), 0 8px 10px -6px rgba(0, 0, 0, 0.10);
+
+    /* Backdrop blur */
+    --blur-sm: blur(8px);
+    --blur-md: blur(12px);
+    --blur-lg: blur(16px);
+  }
+
+  /* ─────────────────────────────────────────────
+     LIGHT MODE - Clean, Warm, Professional
+     ───────────────────────────────────────────── */
+  .light {
+    /* Backgrounds - Clean whites/grays */
+    --bg-base: #FAFAFA;
+    --bg-elevated: #FFFFFF;
+    --bg-surface: #F4F4F5;
+    --bg-hover: #E4E4E7;
+    --bg-active: #D4D4D8;
+    
+    /* Card background */
+    --card-bg: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --bg-muted: #F4F4F5;
+
+    /* Borders - Neutral gray */
+    --border: #E4E4E7;
+    --border-subtle: #E4E4E7;
+    --border-default: #D4D4D8;
+    --border-strong: #A1A1AA;
+    --border-focus: #8B5CF6;
+
+    /* Text - Proper contrast */
+    --text-primary: #18181B;
+    --text-secondary: #52525B;
+    --text-tertiary: #71717A;
+    --text-muted: #A1A1AA;
+    --text-muted-foreground: #52525B;
+
+    /* Accent - Purple (slightly darker for light bg contrast) */
+    --accent-primary: #8B5CF6;
+    --accent-hover: #7C3AED;
+    --accent-active: #6D28D9;
+    --accent-subtle: rgba(139, 92, 246, 0.08);
+    --accent-muted: rgba(139, 92, 246, 0.12);
+    --accent-border: rgba(139, 92, 246, 0.20);
+    --accent-ring: rgba(139, 92, 246, 0.30);
+
+    /* Gradient - Subtle purple spectrum */
+    --gradient-start: #8B5CF6;
+    --gradient-mid: #7C3AED;
+    --gradient-end: #A78BFA;
+
+    /* Semantic colors - Adjusted for light bg */
+    --success: #16A34A;
+    --success-subtle: rgba(22, 163, 74, 0.08);
+    --warning: #D97706;
+    --warning-subtle: rgba(217, 119, 6, 0.08);
+    --error: #DC2626;
+    --error-subtle: rgba(220, 38, 38, 0.08);
+    --info: #8B5CF6;
+    --info-subtle: rgba(139, 92, 246, 0.08);
+
+    /* Shadows - Neutral, no color tint */
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.06), 0 4px 6px -4px rgba(0, 0, 0, 0.06);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Hidden scrollbars (Apple-style) */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    overflow: auto;
+  }
+
+  /* Typography */
+  h1 { @apply text-3xl font-semibold tracking-tight; }
+  h2 { @apply text-2xl font-semibold tracking-tight; }
+  h3 { @apply text-xl font-semibold; }
+  h4 { @apply text-lg font-semibold; }
+  p { @apply text-sm leading-relaxed; }
+
+  /* Focus states - Purple ring for accessibility */
+  *:focus-visible {
+    outline: 2px solid var(--accent-ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Glass morphism - Neutral, no color tint */
+  .glass {
+    background: rgba(24, 24, 27, 0.80);
+    backdrop-filter: var(--blur-md);
+    -webkit-backdrop-filter: var(--blur-md);
+    border: 1px solid var(--border-subtle);
+  }
+
+  .light .glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: var(--blur-md);
+    -webkit-backdrop-filter: var(--blur-md);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Gradient text - USE SPARINGLY */
+  .gradient-text {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Transitions */
+  .transition-base {
+    transition: all 0.15s ease;
+  }
+  .transition-smooth {
+    transition: all 0.25s ease;
+  }
+}
+
+/* Animation for HeroGradientButton - slow rotating gradient border */
+@property --gradient-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spin-slow {
+  from {
+    --gradient-angle: 0deg;
+  }
+  to {
+    --gradient-angle: 360deg;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   REACT FLOW OVERRIDES
+   Fix pointer events and z-index for panels
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Ensure ReactFlow panels allow pointer events */
+.react-flow__panel {
+  pointer-events: auto !important;
+}
+
+/* Ensure buttons inside panels are clickable */
+.react-flow__panel button,
+.react-flow__panel select,
+.react-flow__panel input,
+.react-flow__panel a {
+  pointer-events: auto !important;
+  cursor: pointer;
+}
+
+/* Fix z-index stacking for dropdowns inside panels */
+.react-flow__panel .absolute {
+  z-index: 200;
+}
+
+/* Ensure minimap and controls don't block main panel */
+.react-flow__minimap {
+  z-index: 4;
+}
+
+.react-flow__controls {
+  z-index: 5;
+}
+
+/* Custom panel z-index - higher than ReactFlow internals */
+.react-flow__panel.react-flow__panel-top-right,
+.react-flow__panel.react-flow__panel-top-left,
+.react-flow__panel.react-flow__panel-bottom-right,
+.react-flow__panel.react-flow__panel-bottom-left {
+  z-index: 10;
+}
+
