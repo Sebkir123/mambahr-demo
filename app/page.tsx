@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VIDEO DEMO PAGE - Production-matching design
+ * VIDEO DEMO PAGE - Production-matching design with TOUR
  * 
  * Standalone page for YC video recording.
  * Matches the v2 layout exactly but with working state.
@@ -13,7 +13,8 @@ import { MambaLogo } from '@/components/ui/mamba-logo';
 import { 
   ArrowUp, X, AlertTriangle, TrendingUp, Plus, Slash, Mic, AtSign,
   Home, Search, Heart, Zap, Settings, Users, ChevronDown, Bell,
-  Building, BarChart3, Menu, MessageSquare, Sparkles, Calendar, Clock
+  Building, BarChart3, Menu, MessageSquare, Sparkles, Calendar, Clock,
+  Play
 } from 'lucide-react';
 
 // ============================================================================
@@ -26,6 +27,99 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
+
+// ============================================================================
+// TOUR COMPONENT (Custom, Robust)
+// ============================================================================
+
+interface TourStep {
+  targetId: string;
+  title: string;
+  content: string;
+  position: 'right' | 'left' | 'top' | 'bottom' | 'center';
+}
+
+const TOUR_STEPS: TourStep[] = [
+  {
+    targetId: 'center-screen',
+    title: 'Welcome to Mamba',
+    content: "Mamba is the AI-native People OS. Let's see how it answers questions traditional HR software can't.",
+    position: 'center'
+  },
+  {
+    targetId: 'chat-input-area',
+    title: 'Just Ask',
+    content: "Don't navigate complex dashboards. Just ask: 'Who is at flight risk?'",
+    position: 'top'
+  },
+  {
+    targetId: 'flight-risk-canvas',
+    title: 'Retention Intelligence',
+    content: "Mamba identifies risk instantly. Emily is your highest impact employee at risk ($842K value).",
+    position: 'left'
+  },
+  {
+    targetId: 'impact-canvas',
+    title: 'True Business Impact',
+    content: "We track 162 signals to calculate real business value—revenue, influence, and savings.",
+    position: 'left'
+  }
+];
+
+function TourOverlay({ stepIndex, onNext, onSkip }: { stepIndex: number; onNext: () => void; onSkip: () => void }) {
+  const step = TOUR_STEPS[stepIndex];
+  if (!step) return null;
+
+  // Simple positioning logic based on target
+  let style: React.CSSProperties = {};
+  
+  if (step.position === 'center') {
+    style = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+  } else if (step.targetId === 'chat-input-area') {
+    style = { bottom: '120px', left: '50%', transform: 'translateX(-50%)' };
+  } else if (step.targetId === 'flight-risk-canvas' || step.targetId === 'impact-canvas') {
+    style = { top: '20%', right: '420px' }; // Positioned to the left of the right panel
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 pointer-events-none">
+      {/* Backdrop (optional, subtle dim) */}
+      <div className="absolute inset-0 bg-black/20 pointer-events-auto" onClick={onSkip} />
+
+      {/* Popover */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        key={stepIndex}
+        className="absolute pointer-events-auto w-80 p-5 rounded-2xl shadow-xl border border-[var(--border)] bg-[var(--bg-elevated)]"
+        style={style}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--accent-primary)] text-white text-xs font-bold">
+            {stepIndex + 1}
+          </div>
+          <h3 className="font-semibold text-[var(--text-primary)]">{step.title}</h3>
+        </div>
+        <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
+          {step.content}
+        </p>
+        <div className="flex justify-between items-center">
+          <button onClick={onSkip} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+            End Tour
+          </button>
+          <button
+            onClick={onNext}
+            className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-sm font-medium hover:brightness-110 transition-all flex items-center gap-2"
+          >
+            {stepIndex < TOUR_STEPS.length - 1 ? 'Next' : 'Finish'}
+            <ArrowUp className="w-3 h-3 rotate-90" />
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 
 // ============================================================================
 // SIDEBAR - Matches Production Exactly
@@ -425,14 +519,24 @@ export default function VideoDemoPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [canvas, setCanvas] = useState<CanvasType>('none');
   const [showYourDay, setShowYourDay] = useState(true);
+  const [tourStep, setTourStep] = useState<number>(-1); // -1 = not started
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const userName = 'YCombinator';
 
+  // State mgmt for automatic tour progression
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const startTour = () => {
+    setTourStep(0);
+  };
+
+  const nextTourStep = () => {
+    setTourStep(prev => prev >= TOUR_STEPS.length - 1 ? -1 : prev + 1);
+  };
 
   const handleQuery = async (text: string) => {
     if (!text.trim()) return;
@@ -470,12 +574,31 @@ export default function VideoDemoPage() {
 
   return (
     <div className="h-screen w-screen flex overflow-hidden" style={{ background: 'var(--background)' }}>
+      {/* Tour Overlay */}
+      {tourStep >= 0 && (
+        <TourOverlay 
+          stepIndex={tourStep} 
+          onNext={nextTourStep} 
+          onSkip={() => setTourStep(-1)} 
+        />
+      )}
+
       <Sidebar userName={userName} onQuery={handleQuery} />
       
       <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
         {/* Navbar */}
         <nav className="h-14 flex items-center justify-between px-4" style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
-          <div />
+          <div className="flex items-center gap-2">
+            {tourStep === -1 && (
+              <button 
+                onClick={startTour}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-[var(--accent-primary)] bg-[var(--accent-subtle)] hover:bg-[var(--accent-muted)] transition-colors"
+              >
+                <Play className="w-3 h-3 fill-current" />
+                Start Tour
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             <button className="relative p-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
               <Bell className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
@@ -488,10 +611,10 @@ export default function VideoDemoPage() {
         {/* Content */}
         <main className="flex-1 min-h-0 overflow-hidden flex">
           {/* Chat */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
             <div className="flex-1 overflow-y-auto">
               {!hasMessages ? (
-                <div className="h-full flex flex-col items-center justify-center px-6">
+                <div id="center-screen" className="h-full flex flex-col items-center justify-center px-6">
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 px-4 py-2 rounded-full mb-4" style={{ background: 'var(--accent-subtle)' }}>
                     <MambaLogo size={20} variant="forDark" />
                     <span className="text-sm font-medium" style={{ color: 'var(--accent-primary)' }}>Hi {userName.split(' ')[0]}!</span>
@@ -500,7 +623,7 @@ export default function VideoDemoPage() {
                     Your organization at a glance
                   </motion.h1>
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="w-full max-w-2xl mb-6">
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} id="chat-input-area">
                       <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
                         <input ref={inputRef} type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Ask Mamba anything..." className="w-full bg-transparent text-base outline-none mb-3" style={{ color: 'var(--text-primary)' }} />
                         <div className="flex items-center justify-between">
@@ -564,8 +687,16 @@ export default function VideoDemoPage() {
 
           {/* Right Panel */}
           <AnimatePresence mode="wait">
-            {canvas === 'flight-risk' && <FlightRiskCanvas key="fr" onClose={() => { setCanvas('none'); setShowYourDay(true); }} />}
-            {canvas === 'impact' && <ImpactCanvas key="imp" onClose={() => { setCanvas('none'); setShowYourDay(true); }} />}
+            {canvas === 'flight-risk' && (
+              <div id="flight-risk-canvas" className="h-full">
+                <FlightRiskCanvas key="fr" onClose={() => { setCanvas('none'); setShowYourDay(true); }} />
+              </div>
+            )}
+            {canvas === 'impact' && (
+              <div id="impact-canvas" className="h-full">
+                <ImpactCanvas key="imp" onClose={() => { setCanvas('none'); setShowYourDay(true); }} />
+              </div>
+            )}
             {canvas === 'none' && showYourDay && (
               <motion.div key="yd" initial={{ width: 0, opacity: 0 }} animate={{ width: 320, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex-shrink-0 border-l overflow-hidden" style={{ borderColor: 'var(--border)' }}>
                 <YourDayPanel userName={userName} onQuery={handleQuery} />
