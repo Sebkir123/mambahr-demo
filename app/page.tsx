@@ -1,355 +1,148 @@
 'use client';
 
 /**
- * VIDEO DEMO PAGE - Production-matching design with TOUR
+ * Demo V2 Dashboard - Full Featured
  * 
- * Standalone page for YC video recording.
- * Matches the v2 layout exactly but with working state.
+ * Interactive demo with:
+ * - Chat with AI responses
+ * - Canvas visualizations that appear based on queries
+ * - Your Day panel
+ * - All fake data, fully working
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MambaLogo } from '@/components/ui/mamba-logo';
+import { matchDemoResponse, proactiveInsights } from './demo/lib/demo-ai';
+import { DemoCanvas, type CanvasType } from './demo/components/demo-canvas';
+import { DemoToast, type Toast } from './demo/components/demo-toast';
+import { DemoTour } from './demo/components/demo-tour';
+import DemoV2Layout, { useDemoContext } from './components/demo-layout';
 import { 
-  ArrowUp, X, AlertTriangle, TrendingUp, Plus, Slash, Mic, AtSign,
-  Home, Search, Heart, Zap, Settings, Users, ChevronDown, Bell,
-  Building, BarChart3, Menu, MessageSquare, Sparkles, Calendar, Clock,
-  Play
+  Plus, Slash, Mic, AtSign, ArrowUp, Users, Mail, ChevronRight, X, 
+  Plug, Sparkles, Calendar, AlertTriangle, Clock, Zap, TrendingUp
 } from 'lucide-react';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-type CanvasType = 'none' | 'flight-risk' | 'impact';
-
 interface Message {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
+  timestamp: Date;
+  canvasType?: CanvasType;
+  toolCalls?: string[];
+  suggestedFollowups?: string[];
 }
 
 // ============================================================================
-// TOUR COMPONENT (Custom, Robust)
+// YOUR DAY PANEL
 // ============================================================================
 
-interface TourStep {
-  targetId: string;
-  title: string;
-  content: string;
-  position: 'right' | 'left' | 'top' | 'bottom' | 'center';
-}
-
-const TOUR_STEPS: TourStep[] = [
-  {
-    targetId: 'center-screen',
-    title: 'Welcome to Mamba',
-    content: "Mamba is the AI-native People OS. Let's see how it answers questions traditional HR software can't.",
-    position: 'center'
-  },
-  {
-    targetId: 'chat-input-area',
-    title: 'Just Ask',
-    content: "Don't navigate complex dashboards. Just ask: 'Who is at flight risk?'",
-    position: 'top'
-  },
-  {
-    targetId: 'flight-risk-canvas',
-    title: 'Retention Intelligence',
-    content: "Mamba identifies risk instantly. Emily is your highest impact employee at risk ($842K value).",
-    position: 'left'
-  },
-  {
-    targetId: 'impact-canvas',
-    title: 'True Business Impact',
-    content: "We track 162 signals to calculate real business value—revenue, influence, and savings.",
-    position: 'left'
-  }
-];
-
-function TourOverlay({ stepIndex, onNext, onSkip }: { stepIndex: number; onNext: () => void; onSkip: () => void }) {
-  const step = TOUR_STEPS[stepIndex];
-  if (!step) return null;
-
-  // Simple positioning logic based on target
-  let style: React.CSSProperties = {};
-  
-  if (step.position === 'center') {
-    style = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-  } else if (step.targetId === 'chat-input-area') {
-    style = { bottom: '120px', left: '50%', transform: 'translateX(-50%)' };
-  } else if (step.targetId === 'flight-risk-canvas' || step.targetId === 'impact-canvas') {
-    style = { top: '20%', right: '420px' }; // Positioned to the left of the right panel
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 pointer-events-none">
-      {/* Backdrop (optional, subtle dim) */}
-      <div className="absolute inset-0 bg-black/20 pointer-events-auto" onClick={onSkip} />
-
-      {/* Popover */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        key={stepIndex}
-        className="absolute pointer-events-auto w-80 p-5 rounded-2xl shadow-xl border border-[var(--border)] bg-[var(--bg-elevated)]"
-        style={style}
-      >
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--accent-primary)] text-white text-xs font-bold">
-            {stepIndex + 1}
-          </div>
-          <h3 className="font-semibold text-[var(--text-primary)]">{step.title}</h3>
-        </div>
-        <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
-          {step.content}
-        </p>
-        <div className="flex justify-between items-center">
-          <button onClick={onSkip} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
-            End Tour
-          </button>
-          <button
-            onClick={onNext}
-            className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-sm font-medium hover:brightness-110 transition-all flex items-center gap-2"
-          >
-            {stepIndex < TOUR_STEPS.length - 1 ? 'Next' : 'Finish'}
-            <ArrowUp className="w-3 h-3 rotate-90" />
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-
-// ============================================================================
-// SIDEBAR - Matches Production Exactly
-// ============================================================================
-
-function Sidebar({ userName, onQuery }: { userName: string; onQuery: (q: string) => void }) {
-  const [expandedSections, setExpandedSections] = useState<string[]>(['people', 'operations', 'insights']);
-
-  const toggleSection = (id: string) => {
-    setExpandedSections(prev => 
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-    );
-  };
-
-  return (
-    <aside className="w-64 h-full flex flex-col" style={{ background: 'var(--bg-card)', borderRight: '1px solid var(--border)' }}>
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MambaLogo size={24} variant="forDark" />
-          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>MambaHR</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button className="p-1.5 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
-            <Search className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-          </button>
-          <button className="p-1.5 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
-            <Menu className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-          </button>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <div className="flex-1 overflow-y-auto px-3 py-2">
-        {/* Home - Active */}
-        <button
-          onClick={() => onQuery('Show me my organization')}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 transition-colors bg-[var(--bg-muted)]"
-        >
-          <Home className="w-4 h-4" style={{ color: 'var(--text-primary)' }} />
-          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Home</span>
-        </button>
-
-        {/* FOR YOU */}
-        <div className="mt-5 mb-2">
-          <span className="px-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-            For You
-          </span>
-        </div>
-        
-        <button onClick={() => onQuery('Show me org health')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 hover:bg-[var(--bg-muted)] transition-colors">
-          <Heart className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Org Health</span>
-        </button>
-        
-        <button onClick={() => onQuery('Tell me about Emily')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 hover:bg-[var(--bg-muted)] transition-colors">
-          <Zap className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Impact</span>
-        </button>
-        
-        <button onClick={() => onQuery('Show settings')} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg mb-0.5 hover:bg-[var(--bg-muted)] transition-colors">
-          <Settings className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Settings</span>
-        </button>
-
-        {/* PEOPLE */}
-        <div className="mt-4">
-          <button onClick={() => toggleSection('people')} className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
-            <div className="flex items-center gap-3">
-              <Users className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>People</span>
-            </div>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandedSections.includes('people') ? '' : '-rotate-90'}`} style={{ color: 'var(--text-tertiary)' }} />
-          </button>
-          <AnimatePresence>
-            {expandedSections.includes('people') && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <button onClick={() => onQuery('Show directory')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>Directory</button>
-                <button onClick={() => onQuery('Show org chart')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>Org Chart</button>
-                <button onClick={() => onQuery('Show teams')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>Teams</button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* OPERATIONS */}
-        <div className="mt-2">
-          <button onClick={() => toggleSection('operations')} className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
-            <div className="flex items-center gap-3">
-              <Building className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Operations</span>
-            </div>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandedSections.includes('operations') ? '' : '-rotate-90'}`} style={{ color: 'var(--text-tertiary)' }} />
-          </button>
-          <AnimatePresence>
-            {expandedSections.includes('operations') && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <button onClick={() => onQuery('Show PTO requests')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>PTO</button>
-                <button onClick={() => onQuery('Show expenses')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>Expenses</button>
-                <button onClick={() => onQuery('Show equipment')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>Equipment</button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* INSIGHTS */}
-        <div className="mt-2">
-          <button onClick={() => toggleSection('insights')} className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
-            <div className="flex items-center gap-3">
-              <BarChart3 className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Insights</span>
-            </div>
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandedSections.includes('insights') ? '' : '-rotate-90'}`} style={{ color: 'var(--text-tertiary)' }} />
-          </button>
-          <AnimatePresence>
-            {expandedSections.includes('insights') && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                <button onClick={() => onQuery('Show analytics')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>Analytics</button>
-                <button onClick={() => onQuery('Show reports')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>Reports</button>
-                <button onClick={() => onQuery('Show trends')} className="w-full text-left pl-10 pr-3 py-1.5 text-sm hover:bg-[var(--bg-muted)] rounded-lg transition-colors" style={{ color: 'var(--text-tertiary)' }}>Trends</button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* RECENT */}
-        <div className="mt-5 mb-2">
-          <span className="px-3 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Recent</span>
-        </div>
-        {[
-          'Plan a 10% reduction in En...',
-          'Show impact overview',
-        ].map((text, i) => (
-          <button key={i} className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-[var(--bg-muted)] transition-colors truncate" style={{ color: 'var(--text-tertiary)' }}>
-            <MessageSquare className="w-3.5 h-3.5 flex-shrink-0" />
-            <span className="truncate">{text}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* User */}
-      <div className="p-3 border-t" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors cursor-pointer">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium" style={{ background: 'var(--accent-primary)', color: 'white' }}>
-            {userName.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{userName}</div>
-            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Owner · ADMIN</div>
-          </div>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-// ============================================================================
-// YOUR DAY PANEL - Matches Production
-// ============================================================================
-
-function YourDayPanel({ userName, onQuery }: { userName: string; onQuery: (q: string) => void }) {
+function YourDayPanel({ userName, onClose, onAskExample }: { 
+  userName: string; 
+  onClose: () => void;
+  onAskExample: (query: string) => void;
+}) {
   const firstName = userName.split(' ')[0];
+
+  const tasks = [
+    { id: 1, label: 'Review 3 PTO requests', action: 'Show pending PTO requests', icon: Calendar, urgent: true },
+    { id: 2, label: '2 employees at flight risk', action: 'Who is at flight risk?', icon: AlertTriangle, urgent: true },
+    { id: 3, label: 'Complete Q4 review prep', action: 'Show me key metrics', icon: Clock, urgent: false },
+  ];
 
   return (
     <div className="w-80 h-full overflow-y-auto p-4" style={{ background: 'var(--bg-card)' }}>
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
           <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Your Day</span>
         </div>
-        <button className="p-1 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
+        <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
           <X className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
         </button>
       </div>
 
+      {/* Greeting */}
       <div className="mb-6">
-        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Good morning, {firstName}</h3>
-        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>You have 3 items that need attention today.</p>
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+          Good morning, {firstName}
+        </h3>
+        <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          You have 3 items that need attention today.
+        </p>
       </div>
 
+      {/* Tasks */}
       <div className="mb-4">
         <div className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Today's Tasks</div>
-        {[
-          { label: 'Review 3 PTO requests', query: 'Show PTO requests', icon: Calendar, urgent: true },
-          { label: '2 employees at flight risk', query: 'Who is at flight risk?', icon: AlertTriangle, urgent: true },
-          { label: 'Complete Q4 review prep', query: 'Show key metrics', icon: Clock, urgent: false },
-        ].map((task, i) => (
+        {tasks.map((task, i) => (
           <motion.button
-            key={i}
+            key={task.id}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.1 }}
-            onClick={() => onQuery(task.query)}
+            onClick={() => onAskExample(task.action)}
             className="w-full flex items-center gap-3 p-3 rounded-xl mb-2 hover:bg-[var(--bg-muted)] transition-colors text-left"
             style={{ border: '1px solid var(--border)' }}
           >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                 style={{ background: task.urgent ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-muted)' }}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0`}
+              style={{ background: task.urgent ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-muted)' }}>
               <task.icon className="w-4 h-4" style={{ color: task.urgent ? '#EF4444' : 'var(--text-tertiary)' }} />
             </div>
             <div className="flex-1">
               <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{task.label}</div>
             </div>
-            {task.urgent && <div className="w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />}
+            {task.urgent && (
+              <div className="w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />
+            )}
           </motion.button>
         ))}
       </div>
 
+      {/* Quick actions */}
       <div className="mb-4">
         <div className="text-xs font-medium uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Quick Actions</div>
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => onQuery('Show org health')} className="p-3 rounded-xl text-left hover:bg-[var(--bg-muted)] transition-colors" style={{ border: '1px solid var(--border)' }}>
+          <button
+            onClick={() => onAskExample('Show me org health')}
+            className="p-3 rounded-xl text-left hover:bg-[var(--bg-muted)] transition-colors"
+            style={{ border: '1px solid var(--border)' }}
+          >
             <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Org Health</div>
             <div className="text-lg font-bold" style={{ color: '#10B981' }}>87</div>
           </button>
-          <button onClick={() => onQuery('Show directory')} className="p-3 rounded-xl text-left hover:bg-[var(--bg-muted)] transition-colors" style={{ border: '1px solid var(--border)' }}>
+          <button
+            onClick={() => onAskExample('Show me key metrics')}
+            className="p-3 rounded-xl text-left hover:bg-[var(--bg-muted)] transition-colors"
+            style={{ border: '1px solid var(--border)' }}
+          >
             <div className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Employees</div>
             <div className="text-lg font-bold" style={{ color: 'var(--accent-primary)' }}>52</div>
           </button>
         </div>
       </div>
 
-      <div className="rounded-xl p-4" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
+      {/* AI Prompt */}
+      <div
+        className="rounded-xl p-4"
+        style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}
+      >
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
             <MambaLogo size={18} variant="forDark" />
           </div>
           <div className="flex-1">
-            <h4 className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Ask me anything</h4>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>I can help with PTO, finding people, goals, and more.</p>
+            <h4 className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+              Ask me anything
+            </h4>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              I can help with PTO, finding people, goals, and more.
+            </p>
           </div>
         </div>
       </div>
@@ -357,354 +150,591 @@ function YourDayPanel({ userName, onQuery }: { userName: string; onQuery: (q: st
   );
 }
 
-// ============================================================================
-// FLIGHT RISK CANVAS
-// ============================================================================
-
-function FlightRiskCanvas({ onClose }: { onClose: () => void }) {
-  return (
-    <motion.div
-      initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 380, opacity: 1 }}
-      exit={{ width: 0, opacity: 0 }}
-      className="h-full border-l overflow-hidden flex flex-col flex-shrink-0"
-      style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}
-    >
-      <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5" style={{ color: '#F59E0B' }} />
-          <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Retention Intelligence</h2>
-        </div>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--bg-muted)]">
-          <X className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-        </button>
-      </div>
-      
-      <div className="p-4 border-b" style={{ borderColor: 'var(--border)', background: 'rgba(245, 158, 11, 0.05)' }}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>2 employees need attention</span>
-          <span className="text-xs px-2 py-1 rounded-full" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B' }}>Proactive action</span>
-        </div>
-        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>162 signals tracked across 40 integrations</div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {/* Emily Kim */}
-        <div className="p-4 rounded-xl" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <div className="font-medium" style={{ color: 'var(--text-primary)' }}>Emily Kim</div>
-              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Senior Software Engineer</div>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-lg font-bold" style={{ color: '#F59E0B' }}>42%</span>
-              <TrendingUp className="w-3 h-3" style={{ color: '#EF4444' }} />
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 mb-3 p-2 rounded-lg" style={{ background: 'var(--bg-card)' }}>
-            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Impact:</span>
-            <span className="text-sm font-bold" style={{ color: 'var(--accent-primary)' }}>$842K</span>
-          </div>
-          
-          <div className="flex flex-wrap gap-1.5">
-            <span className="px-2 py-1 rounded-md text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>Slack response +45%</span>
-            <span className="px-2 py-1 rounded-md text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>Commits down 30%</span>
-            <span className="px-2 py-1 rounded-md text-xs" style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}>Calendar fragmentation ↑</span>
-          </div>
-        </div>
-
-        {/* David Park */}
-        <div className="p-4 rounded-xl" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <div className="font-medium" style={{ color: 'var(--text-primary)' }}>David Park</div>
-              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Sales Director</div>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-lg font-bold" style={{ color: '#EF4444' }}>62%</span>
-              <TrendingUp className="w-3 h-3" style={{ color: '#EF4444' }} />
-            </div>
-          </div>
-          <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'var(--bg-card)' }}>
-            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Impact:</span>
-            <span className="text-sm font-bold" style={{ color: 'var(--accent-primary)' }}>$2.1M</span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// ============================================================================
-// IMPACT CANVAS
-// ============================================================================
-
-function ImpactCanvas({ onClose }: { onClose: () => void }) {
-  return (
-    <motion.div
-      initial={{ width: 0, opacity: 0 }}
-      animate={{ width: 550, opacity: 1 }}
-      exit={{ width: 0, opacity: 0 }}
-      className="h-full border-l overflow-hidden flex flex-col flex-shrink-0"
-      style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}
-    >
-      <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium" style={{ background: 'var(--accent-primary)', color: 'white' }}>E</div>
-          <div>
-            <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Emily Kim</h2>
-            <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Senior Software Engineer · Engineering</div>
-          </div>
-        </div>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--bg-muted)]">
-          <X className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
-        </button>
-      </div>
-      
-      <div className="p-6 border-b" style={{ borderColor: 'var(--border)', background: 'rgba(167, 139, 250, 0.05)' }}>
-        <div className="text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--text-tertiary)' }}>Total Annual Impact</div>
-        <div className="text-4xl font-bold" style={{ color: 'var(--accent-primary)' }}>$842,000</div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div>
-          <div className="text-xs uppercase tracking-wider mb-3" style={{ color: 'var(--text-tertiary)' }}>Impact Breakdown</div>
-          <div className="space-y-3">
-            <div className="p-3 rounded-xl" style={{ background: 'var(--bg-muted)' }}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Direct Revenue</span>
-                <span className="font-semibold" style={{ color: '#10B981' }}>$285,000</span>
-              </div>
-              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Revenue from features she shipped</div>
-            </div>
-            <div className="p-3 rounded-xl" style={{ background: 'var(--bg-muted)' }}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Revenue Influence</span>
-                <span className="font-semibold" style={{ color: '#10B981' }}>$420,000</span>
-              </div>
-              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Impact on deals through technical support</div>
-            </div>
-            <div className="p-3 rounded-xl" style={{ background: 'var(--bg-muted)' }}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm" style={{ color: 'var(--text-primary)' }}>Cost Savings</span>
-                <span className="font-semibold" style={{ color: '#10B981' }}>$137,000</span>
-              </div>
-              <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Infrastructure optimization (40% reduction)</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-4 rounded-xl" style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-4 h-4" style={{ color: '#F59E0B' }} />
-            <span className="font-medium" style={{ color: '#F59E0B' }}>Flight Risk: 42%</span>
-          </div>
-          <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-            Signals: Slack response time +45%, GitHub commits -30%, 3 cancelled 1:1s
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-// ============================================================================
-// MAIN PAGE
-// ============================================================================
-
-export default function VideoDemoPage() {
+function DemoV2PageContent() {
+  const { registerQueryHandler } = useDemoContext();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [canvas, setCanvas] = useState<CanvasType>('none');
+  const [currentToolCall, setCurrentToolCall] = useState<string | null>(null);
   const [showYourDay, setShowYourDay] = useState(true);
-  const [tourStep, setTourStep] = useState<number>(-1); // -1 = not started
+  const [canvasType, setCanvasType] = useState<CanvasType>('none');
+
+  const [userName, setUserName] = useState('YCombinator');
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [showTour, setShowTour] = useState(true);
+  
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const userName = 'YCombinator';
+  const handleCloseTour = () => {
+    setShowTour(false);
+  };
 
-  // State mgmt for automatic tour progression
+  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const startTour = () => {
-    setTourStep(0);
-  };
+  // FORCE canvas update based on last user message
+  useEffect(() => {
+    if (messages.length === 0) return;
+    
+    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+    if (!lastUserMessage) return;
+    
+    const query = lastUserMessage.content.toLowerCase();
+    
+    let newCanvas: CanvasType = 'none';
+    
+    if (query.includes('flight risk') || query.includes('at risk') || query.includes('retention')) {
+      newCanvas = 'flight-risk';
+    } else if (query.includes('emily')) {
+      newCanvas = 'impact';
+    } else if (query.includes('directory') || query.includes('employee list')) {
+      newCanvas = 'directory';
+    } else if (query.includes('org overview') || query.includes('headcount') || query.includes('organization')) {
+      newCanvas = 'org-overview';
+    } else if (query.includes('team health') || query.includes('engagement') || query.includes('morale')) {
+      newCanvas = 'team-health';
+    } else if (query.includes('metric') || query.includes('kpi')) {
+      newCanvas = 'metrics';
+    } else if (query.includes('org chart') || query.includes('hierarchy')) {
+      newCanvas = 'org-chart';
+    } else if (query.includes('pto') || query.includes('time off') || query.includes('vacation')) {
+      newCanvas = 'pto-requests';
+    } else if (query.includes('analytic') || query.includes('report')) {
+      newCanvas = 'analytics';
+    }
+    
+    if (newCanvas !== 'none') {
+      setCanvasType(newCanvas);
+      setShowYourDay(false);
+    }
+  }, [messages]);
 
-  const nextTourStep = () => {
-    setTourStep(prev => prev >= TOUR_STEPS.length - 1 ? -1 : prev + 1);
-  };
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // ⌘K to focus input
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+      // Esc to close canvas
+      if (e.key === 'Escape' && canvasType !== 'none') {
+        setCanvasType('none');
+        setShowYourDay(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [canvasType]);
 
-  const handleQuery = async (text: string) => {
-    if (!text.trim()) return;
+  // Toast helper
+  const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
+    const id = `toast-${Date.now()}`;
+    setToasts(prev => [...prev, { ...toast, id }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
 
-    const query = text.toLowerCase();
-    setMessages(prev => [...prev, { role: 'user', content: text }]);
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  // Handle message submission with tool call simulation
+  const handleSubmit = useCallback(async (text?: string) => {
+    const messageText = text || input;
+    if (!messageText.trim()) return;
+
+    const userMessage: Message = {
+      id: `msg-${Date.now()}`,
+      role: 'user',
+      content: messageText.trim(),
+      timestamp: new Date(),
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
     setShowYourDay(false);
 
-    await new Promise(r => setTimeout(r, 800));
-
-    let responseText = "I can help with that!";
-    let newCanvas: CanvasType = 'none';
+    // Get response
+    const response = matchDemoResponse(messageText);
     
-    if (query.includes('flight risk') || query.includes('at risk') || query.includes('retention')) {
-      responseText = "I've identified 2 employees with elevated flight risk. Emily Kim is your highest-impact person at risk — $842,000 in annual value.";
-      newCanvas = 'flight-risk';
-    } else if (query.includes('emily')) {
-      responseText = "Here's Emily Kim's full impact profile. She generates $842,000 in value annually: $285K direct revenue, $420K revenue influence, and $137K in cost savings.";
-      newCanvas = 'impact';
+    // Determine canvas type - check for specific queries directly
+    let targetCanvas: CanvasType = 'none';
+    const lowerQuery = messageText.toLowerCase();
+    
+    // Direct keyword matching as fallback
+    if (lowerQuery.includes('flight risk') || lowerQuery.includes('at risk') || lowerQuery.includes('retention')) {
+      targetCanvas = 'flight-risk';
+    } else if (lowerQuery.includes('emily')) {
+      targetCanvas = 'impact';
+    } else if (lowerQuery.includes('directory') || lowerQuery.includes('employee list')) {
+      targetCanvas = 'directory';
+    } else if (lowerQuery.includes('org overview') || lowerQuery.includes('headcount')) {
+      targetCanvas = 'org-overview';
+    } else if (lowerQuery.includes('team health') || lowerQuery.includes('engagement')) {
+      targetCanvas = 'team-health';
+    } else if (lowerQuery.includes('metric') || lowerQuery.includes('kpi')) {
+      targetCanvas = 'metrics';
+    } else if (response.canvas) {
+      targetCanvas = response.canvas;
     }
-
-    setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
+    
+    // Set canvas IMMEDIATELY before any async operations
+    setCanvasType(targetCanvas);
+    
+    // Simulate tool calls
+    if (response.toolCalls && response.toolCalls.length > 0) {
+      for (const tool of response.toolCalls) {
+        setCurrentToolCall(tool.replace(/_/g, ' '));
+        await new Promise(r => setTimeout(r, 400 + Math.random() * 300));
+      }
+      setCurrentToolCall(null);
+    }
+    
+    // Small delay before showing response
+    await new Promise(r => setTimeout(r, 300));
+      
+    const assistantMessage: Message = {
+      id: `msg-${Date.now() + 1}`,
+      role: 'assistant',
+      content: response.message,
+      timestamp: new Date(),
+      canvasType: targetCanvas,
+      suggestedFollowups: response.suggestedFollowups,
+    };
+    
+    setMessages(prev => [...prev, assistantMessage]);
     setIsTyping(false);
-    setCanvas(newCanvas);
+  }, [input]);
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSubmit();
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    handleQuery(input);
+  const handleCloseCanvas = () => {
+    setCanvasType('none');
+    setShowYourDay(true);
   };
 
+  // Register handler so sidebar can send queries
+  useEffect(() => {
+    registerQueryHandler(handleSubmit);
+  }, [registerQueryHandler, handleSubmit]);
+
+  // Suggestion chips
+  const suggestions = [
+    { icon: '📊', label: 'Org Overview', query: 'Show me the organization overview' },
+    { icon: '📈', label: 'Key Metrics', query: 'Show me key HR metrics' },
+    { icon: '👥', label: 'Team Health', query: 'How is team health?' },
+    { icon: '⚠️', label: 'Flight Risk', query: 'Who is at flight risk?' },
+    { icon: '🏖️', label: 'PTO Requests', query: 'Show pending PTO requests' },
+    { icon: '📉', label: 'Trends', query: 'Show me workforce trends' },
+  ];
+
+  const firstName = userName.split(' ')[0] || 'there';
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden" style={{ background: 'var(--background)' }}>
-      {/* Tour Overlay */}
-      {tourStep >= 0 && (
-        <TourOverlay 
-          stepIndex={tourStep} 
-          onNext={nextTourStep} 
-          onSkip={() => setTourStep(-1)} 
-        />
-      )}
-
-      <Sidebar userName={userName} onQuery={handleQuery} />
-      
-      <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden">
-        {/* Navbar */}
-        <nav className="h-14 flex items-center justify-between px-4" style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-2">
-            {tourStep === -1 && (
-              <button 
-                onClick={startTour}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-[var(--accent-primary)] bg-[var(--accent-subtle)] hover:bg-[var(--accent-muted)] transition-colors"
+    <div className="flex-1 flex h-full min-h-0">
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          {!hasMessages ? (
+            /* Welcome View */
+            <div className="h-full flex flex-col items-center justify-center px-6">
+              {/* Greeting badge */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 px-4 py-2 rounded-full mb-4"
+                style={{ background: 'var(--accent-subtle)' }}
               >
-                <Play className="w-3 h-3 fill-current" />
-                Start Tour
-              </button>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-lg hover:bg-[var(--bg-muted)] transition-colors">
-              <Bell className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: 'var(--accent-primary)' }} />
-            </button>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium" style={{ background: 'var(--accent-primary)', color: 'white' }}>T</div>
-          </div>
-        </nav>
+                <MambaLogo size={20} variant="forDark" />
+                <span className="text-sm font-medium" style={{ color: 'var(--accent-primary)' }}>
+                  Hi {firstName}!
+                </span>
+              </motion.div>
 
-        {/* Content */}
-        <main className="flex-1 min-h-0 overflow-hidden flex">
-          {/* Chat */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-            <div className="flex-1 overflow-y-auto">
-              {!hasMessages ? (
-                <div id="center-screen" className="h-full flex flex-col items-center justify-center px-6">
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 px-4 py-2 rounded-full mb-4" style={{ background: 'var(--accent-subtle)' }}>
-                    <MambaLogo size={20} variant="forDark" />
-                    <span className="text-sm font-medium" style={{ color: 'var(--accent-primary)' }}>Hi {userName.split(' ')[0]}!</span>
-                  </motion.div>
-                  <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-3xl font-bold mb-8 text-center" style={{ color: 'var(--text-primary)' }}>
-                    Your organization at a glance
-                  </motion.h1>
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="w-full max-w-2xl mb-6">
-                    <form onSubmit={handleSubmit} id="chat-input-area">
-                      <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
-                        <input ref={inputRef} type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Ask Mamba anything..." className="w-full bg-transparent text-base outline-none mb-3" style={{ color: 'var(--text-primary)' }} />
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <button type="button" className="p-2 rounded-lg hover:bg-[var(--bg-card)] transition-colors"><Plus className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} /></button>
-                            <button type="button" className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--bg-card)] transition-colors"><Slash className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} /><span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Tools</span></button>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button type="button" className="p-2 rounded-lg hover:bg-[var(--bg-card)] transition-colors"><Mic className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} /></button>
-                            <button type="button" className="p-2 rounded-lg hover:bg-[var(--bg-card)] transition-colors"><AtSign className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} /></button>
-                            <button type="submit" disabled={!input.trim()} className="p-2 rounded-lg transition-colors disabled:opacity-30" style={{ background: 'var(--accent-primary)' }}><ArrowUp className="w-4 h-4 text-white" /></button>
-                          </div>
-                        </div>
-                      </div>
-                    </form>
-                  </motion.div>
-                </div>
-              ) : (
-                <div className="max-w-3xl mx-auto px-6 py-4 space-y-4">
-                  {messages.map((msg, i) => (
-                    <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      {msg.role === 'assistant' && (
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center mr-3 flex-shrink-0" style={{ background: 'var(--bg-muted)' }}>
-                          <MambaLogo size={18} variant="forDark" />
-                        </div>
-                      )}
-                      <div className={`max-w-[75%] rounded-2xl px-4 py-3 ${msg.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'}`}
-                           style={{ background: msg.role === 'user' ? 'var(--accent-primary)' : 'var(--bg-muted)', color: msg.role === 'user' ? 'white' : 'var(--text-primary)' }}>
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                  {isTyping && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-start">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center mr-3" style={{ background: 'var(--bg-muted)' }}>
-                        <MambaLogo size={18} variant="forDark" />
-                      </div>
-                      <div className="rounded-2xl rounded-bl-md px-4 py-3" style={{ background: 'var(--bg-muted)' }}>
-                        <div className="flex gap-1">
-                          {[0, 1, 2].map(i => <motion.span key={i} className="w-2 h-2 rounded-full" style={{ background: 'var(--text-tertiary)' }} animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }} />)}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-              )}
-            </div>
+              {/* Main heading */}
+              <motion.h1
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-3xl font-bold mb-8 text-center"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                Your organization at a glance
+              </motion.h1>
 
-            {hasMessages && (
-              <div className="flex-shrink-0 px-6 pb-6">
-                <form onSubmit={handleSubmit} className="max-w-3xl mx-auto">
-                  <div className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}>
-                    <input type="text" value={input} onChange={e => setInput(e.target.value)} placeholder="Ask Mamba anything..." className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
-                    <button type="submit" disabled={!input.trim()} className="p-2 rounded-xl transition-colors disabled:opacity-50" style={{ background: 'var(--accent-primary)' }}><ArrowUp className="w-4 h-4 text-white" /></button>
+              {/* Chat input */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="w-full max-w-2xl mb-6"
+              >
+                <form onSubmit={handleFormSubmit}>
+                  <div
+                    id="tour-search"
+                    className="rounded-2xl px-4 py-3"
+                    style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}
+                  >
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Ask Mamba anything..."
+                      className="w-full bg-transparent text-base outline-none mb-3"
+                      style={{ color: 'var(--text-primary)' }}
+                    />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button type="button" className="p-2 rounded-lg hover:bg-[var(--bg-card)] transition-colors">
+                          <Plus className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                        </button>
+                        <button type="button" className="flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-[var(--bg-card)] transition-colors">
+                          <Slash className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} />
+                          <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Tools</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button type="button" className="p-2 rounded-lg hover:bg-[var(--bg-card)] transition-colors">
+                          <Mic className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                        </button>
+                        <button type="button" className="p-2 rounded-lg hover:bg-[var(--bg-card)] transition-colors">
+                          <AtSign className="w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!input.trim()}
+                          className="p-2 rounded-lg transition-colors disabled:opacity-30"
+                          style={{ background: 'var(--accent-primary)' }}
+                        >
+                          <ArrowUp className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </form>
-              </div>
-            )}
-          </div>
-
-          {/* Right Panel */}
-          <AnimatePresence mode="wait">
-            {canvas === 'flight-risk' && (
-              <div id="flight-risk-canvas" className="h-full">
-                <FlightRiskCanvas key="fr" onClose={() => { setCanvas('none'); setShowYourDay(true); }} />
-              </div>
-            )}
-            {canvas === 'impact' && (
-              <div id="impact-canvas" className="h-full">
-                <ImpactCanvas key="imp" onClose={() => { setCanvas('none'); setShowYourDay(true); }} />
-              </div>
-            )}
-            {canvas === 'none' && showYourDay && (
-              <motion.div key="yd" initial={{ width: 0, opacity: 0 }} animate={{ width: 320, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="flex-shrink-0 border-l overflow-hidden" style={{ borderColor: 'var(--border)' }}>
-                <YourDayPanel userName={userName} onQuery={handleQuery} />
               </motion.div>
-            )}
-          </AnimatePresence>
-        </main>
+
+              {/* Stats row */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="flex items-center gap-4 mb-4"
+              >
+                <button
+                  onClick={() => handleSubmit('Show me the organization overview')}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl transition-colors hover:bg-[var(--bg-muted)]"
+                  style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}
+                >
+                  <Users className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>52 employees</span>
+                </button>
+                <div
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+                  style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}
+                >
+                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Health:</span>
+                  <span className="text-sm font-semibold" style={{ color: '#10B981' }}>87</span>
+                </div>
+              </motion.div>
+
+              {/* Proactive AI Insights - Magic Moments */}
+              <motion.div
+                id="tour-insights"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="w-full max-w-2xl mb-8"
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4" style={{ color: 'var(--accent-primary)' }} />
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
+                    Mamba noticed
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {proactiveInsights.map((insight, i) => (
+                    <motion.button
+                      key={insight.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.5 + i * 0.1 }}
+                      onClick={() => handleSubmit(insight.query)}
+                      className="w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all hover:scale-[1.01]"
+                      style={{ 
+                        background: insight.type === 'success' ? 'rgba(16, 185, 129, 0.08)' : 
+                                   insight.type === 'warning' ? 'rgba(239, 68, 68, 0.08)' : 
+                                   'rgba(139, 92, 246, 0.08)',
+                        border: `1px solid ${insight.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 
+                                             insight.type === 'warning' ? 'rgba(239, 68, 68, 0.2)' : 
+                                             'rgba(139, 92, 246, 0.2)'}`,
+                      }}
+                    >
+                      <span className="text-xl">{insight.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium mb-0.5" style={{ color: 'var(--text-primary)' }}>
+                          {insight.title}
+                        </div>
+                        <div className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                          {insight.description}
+                        </div>
+                      </div>
+                      <span 
+                        className="text-xs font-medium px-3 py-1.5 rounded-lg flex-shrink-0"
+                        style={{ 
+                          background: insight.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 
+                                     insight.type === 'warning' ? 'rgba(239, 68, 68, 0.15)' : 
+                                     'var(--accent-subtle)',
+                          color: insight.type === 'success' ? '#10B981' : 
+                                insight.type === 'warning' ? '#EF4444' : 
+                                'var(--accent-primary)'
+                        }}
+                      >
+                        {insight.action}
+                      </span>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Suggestion chips */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="flex flex-wrap justify-center gap-2 max-w-2xl"
+              >
+                {suggestions.map((s) => (
+                  <button
+                    key={s.label}
+                    onClick={() => handleSubmit(s.query)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-colors hover:bg-[var(--bg-muted)]"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                  >
+                    <span>{s.icon}</span>
+                    {s.label}
+                  </button>
+                ))}
+              </motion.div>
+            </div>
+          ) : (
+            /* Messages View */
+            <div className="max-w-3xl mx-auto px-6 py-4 space-y-4">
+              {messages.map((message) => (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {message.role === 'assistant' && (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center mr-3 flex-shrink-0" style={{ background: 'var(--bg-muted)' }}>
+                      <MambaLogo size={18} variant="forDark" />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <div
+                      className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+                        message.role === 'user' ? 'rounded-br-md' : 'rounded-bl-md'
+                      }`}
+                      style={{
+                        background: message.role === 'user' ? 'var(--accent-primary)' : 'var(--bg-muted)',
+                        color: message.role === 'user' ? 'white' : 'var(--text-primary)',
+                      }}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                    {/* Suggested followups */}
+                    {message.role === 'assistant' && message.suggestedFollowups && (
+                      <div className="flex flex-wrap gap-2 ml-0">
+                        {message.suggestedFollowups.slice(0, 2).map((followup) => (
+                          <button
+                            key={followup}
+                            onClick={() => handleSubmit(followup)}
+                            className="px-3 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--bg-muted)]"
+                            style={{ border: '1px solid var(--border)', color: 'var(--accent-primary)' }}
+                          >
+                            {followup}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+              
+              <AnimatePresence>
+                {isTyping && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-start"
+                  >
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center mr-3" style={{ background: 'var(--bg-muted)' }}>
+                      <MambaLogo size={18} variant="forDark" />
+                    </div>
+                    <div className="rounded-2xl rounded-bl-md px-4 py-3" style={{ background: 'var(--bg-muted)' }}>
+                      {currentToolCall ? (
+                        <div className="flex items-center gap-2">
+                          <motion.div 
+                            className="w-2 h-2 rounded-full"
+                            style={{ background: 'var(--accent-primary)' }}
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 0.6, repeat: Infinity }}
+                          />
+                          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                            {currentToolCall}...
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          {[0, 1, 2].map((i) => (
+                            <motion.span
+                              key={i}
+                              className="w-2 h-2 rounded-full"
+                              style={{ background: 'var(--text-tertiary)' }}
+                              animate={{ opacity: [0.4, 1, 0.4] }}
+                              transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {/* Bottom input (when messages exist) */}
+        {hasMessages && (
+          <div className="flex-shrink-0 px-6 pb-6">
+            <form onSubmit={handleFormSubmit} className="max-w-3xl mx-auto">
+              <div
+                className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                style={{ background: 'var(--bg-muted)', border: '1px solid var(--border)' }}
+              >
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Ask Mamba anything..."
+                  className="flex-1 bg-transparent text-sm outline-none"
+                  style={{ color: 'var(--text-primary)' }}
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="p-2 rounded-xl transition-colors disabled:opacity-50"
+                  style={{ background: 'var(--accent-primary)' }}
+                >
+                  <ArrowUp className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
+
+      {/* Right panels */}
+      {(() => {
+        // Explicit switch to ensure canvas shows
+        if (canvasType === 'flight-risk') {
+          return <DemoCanvas type="flight-risk" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType === 'impact') {
+          return <DemoCanvas type="impact" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType === 'directory') {
+          return <DemoCanvas type="directory" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType === 'org-overview') {
+          return <DemoCanvas type="org-overview" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType === 'team-health') {
+          return <DemoCanvas type="team-health" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType === 'metrics') {
+          return <DemoCanvas type="metrics" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType === 'org-chart') {
+          return <DemoCanvas type="org-chart" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType === 'pto-requests') {
+          return <DemoCanvas type="pto-requests" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType === 'analytics') {
+          return <DemoCanvas type="analytics" onClose={handleCloseCanvas} />;
+        }
+        if (canvasType !== 'none') {
+          return <DemoCanvas type={canvasType} onClose={handleCloseCanvas} />;
+        }
+        // Default: show Your Day panel
+        if (showYourDay) {
+          return (
+            <motion.div
+              key="yourday"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 320, opacity: 1 }}
+              className="flex-shrink-0 border-l overflow-hidden"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <div id="tour-your-day" className="h-full">
+                <YourDayPanel 
+                  userName={userName} 
+                  onClose={() => setShowYourDay(false)}
+                  onAskExample={(q) => handleSubmit(q)}
+                />
+              </div>
+            </motion.div>
+          );
+        }
+        return null;
+      })()}
+      {/* Toast notifications */}
+      <DemoToast toasts={toasts} onRemove={removeToast} />
+      
+      {/* Guided Tour */}
+      <AnimatePresence>
+        {showTour && (
+          <DemoTour 
+            onClose={handleCloseTour} 
+            onStepChange={(step) => {
+              if (step >= 1 && step <= 5) {
+                setCanvasType('impact');
+                setShowYourDay(false);
+              } else if (step === 0 || step === 6) {
+                setCanvasType('none');
+                setShowYourDay(true);
+              } else if (step === 7) {
+                setCanvasType('none');
+                setShowYourDay(true); 
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+export default function DemoPage() {
+  return (
+    <DemoV2Layout>
+      <DemoV2PageContent />
+    </DemoV2Layout>
   );
 }
