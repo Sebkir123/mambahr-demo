@@ -902,12 +902,12 @@ function ImpactCanvas({ onClose }: { onClose: () => void }) {
     totalValue: 842000,
     valueChange: 15,
     revenueGenerated: 285000,   // Direct revenue contribution
-    revenueInfluence: 420000,   // Influence on other revenue
+    // revenueInfluence: 420000, // Removed to match interface
     costSavings: 137000,        // 40% infrastructure cost reduction
     teamLift: 2.4,              // 2.4x team multiplier
     productivityScore: 92,
     strategicScore: 94,
-    trend: 'declining' as const,  // Trend is declining - she might leave
+    trend: 'down' as const,     // Fixed type matching
     rankPercentile: 5,           // Top 5%
     monthlyData: [120, 125, 128, 124, 118, 112],  // Declining trend
     flightRisk: 'medium' as const,
