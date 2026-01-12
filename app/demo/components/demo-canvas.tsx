@@ -879,7 +879,7 @@ export function DemoCanvas({ type, onClose }: DemoCanvasProps) {
 // IMPACT CANVAS - WRAPPER FOR IMPACT ANALYSIS PANEL
 // ============================================================================
 
-import { ImpactAnalysisPanel } from '@/components/dashboard/impact-analysis-panel';
+import { ImpactAnalysisPanel } from './impact-analysis-panel';
 
 function ImpactCanvas({ onClose }: { onClose: () => void }) {
   // Mock data for Emily Kim - the $842K employee from the YC demo
