@@ -240,13 +240,9 @@ export function DemoTour({ onClose, onStepChange }: { onClose: () => void; onSte
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#F26522] to-[#8B5CF6]" />
               
-              <div className="flex justify-center items-center mb-6">
+              <div className="flex justify-center items-center mb-8">
                  {/* YC Logo */}
-                 <div className="w-12 h-12 bg-[#F26522] rounded flex items-center justify-center text-white font-bold text-2xl">Y</div>
-              </div>
-
-              <div className="w-16 h-16 rounded-full bg-[#18181b] text-[#8B5CF6] flex items-center justify-center mx-auto mb-6">
-                <Sparkles className="w-8 h-8" />
+                 <div className="w-20 h-20 bg-[#F26522] rounded-xl flex items-center justify-center text-white font-bold text-4xl shadow-lg">Y</div>
               </div>
               <h2 className="text-2xl font-bold text-white mb-3">Thank you</h2>
               <p className="text-gray-400 mb-8 leading-relaxed">
